@@ -1,3 +1,6 @@
+# Visit the below link to use the application
+https://learnhubpro2.vercel.app/login
+
 # LearnHub - Educational Platform with Analytics
 
 A modern learning management system built with React and Supabase, featuring comprehensive user interaction tracking and analytics similar to Moodle's clickstream data.
