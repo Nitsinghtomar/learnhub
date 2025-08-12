@@ -201,6 +201,40 @@ npm run dev
 - Open http://localhost:3000 (or the port shown in terminal)
 - Register a new account or login
 
+## 🚀 Deployment
+
+### Deploy to Vercel
+
+1. **Push to GitHub** (already done)
+```bash
+git add .
+git commit -m "Deploy to production"
+git push origin main
+```
+
+2. **Deploy to Vercel**
+- Go to [vercel.com](https://vercel.com) and sign in with GitHub
+- Click "New Project"
+- Import your `learnhub` repository
+- Configure environment variables:
+  - `VITE_SUPABASE_URL`: Your Supabase project URL
+  - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon key
+  - `VITE_ENABLE_ANALYTICS`: `true`
+  - `VITE_APP_ENV`: `production`
+- Click "Deploy"
+
+3. **Production URL**
+Your app will be available at: `https://learnhub-[random-id].vercel.app`
+
+### Environment Variables for Production
+Make sure to set these in Vercel dashboard:
+```env
+VITE_SUPABASE_URL=your_production_supabase_url
+VITE_SUPABASE_ANON_KEY=your_production_supabase_anon_key
+VITE_ENABLE_ANALYTICS=true
+VITE_APP_ENV=production
+```
+
 ## 📈 Analytics Implementation
 
 ### Clickstream Tracking
