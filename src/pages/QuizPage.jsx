@@ -1,17 +1,7 @@
 import React from 'react';
-import { useClickstream } from '../hooks/useClickstream';
 
 const QuizPage = () => {
-  const { track } = useClickstream();
-
-  React.useEffect(() => {
-    track({
-      component: 'Quiz',
-      event_name: 'Page viewed',
-      event_context: 'Quiz Page',
-      description: 'User viewed quiz page'
-    });
-  }, [track]);
+  // Remove redundant tracking - useClickstream hook already handles page views
 
   return (
     <div className="p-6">

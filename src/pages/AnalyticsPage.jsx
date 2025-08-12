@@ -51,6 +51,16 @@ const AnalyticsPage = () => {
     }, 1000)
   }
 
+  // Track analytics page view only once when component mounts
+  useEffect(() => {
+    track({
+      component: 'Analytics',
+      event_name: 'Page viewed',
+      event_context: 'Analytics Page',
+      description: 'User viewed analytics page'
+    })
+  }, []) // Empty dependency array ensures this runs only once
+
   const loadAnalytics = async () => {
     try {
       if (!user?.id) {

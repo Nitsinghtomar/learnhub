@@ -19,6 +19,7 @@ const ANALYTICS_ENABLED = import.meta.env.VITE_ENABLE_ANALYTICS === 'true'
 export const useClickstream = () => {
   const pageStartTime = useRef(Date.now())
   const lastPage = useRef(window.location.pathname)
+  const hasTrackedCurrentPage = useRef(false)
 
   // If analytics is disabled, return dummy functions
   if (!ANALYTICS_ENABLED) {
@@ -36,44 +37,64 @@ export const useClickstream = () => {
       trackLogin: () => {},
       trackLogout: () => {},
       trackRegistration: () => {},
-      trackEngagement: () => {}
+      trackEngagement: () => {},
+      track: () => {}
     }
   }
 
-  // Track page views automatically
+  // Track page views automatically but prevent duplicates
   useEffect(() => {
     const currentPath = window.location.pathname
     
-    // Track page view
-    trackPageView({
-      previous_page: lastPage.current !== currentPath ? lastPage.current : null
-    })
+    // Only track if the page actually changed and we haven't tracked this page yet
+    if (lastPage.current !== currentPath && !hasTrackedCurrentPage.current) {
+      // Track page view
+      trackPageView({
+        previous_page: lastPage.current !== currentPath ? lastPage.current : null
+      })
 
-    // Track navigation if page changed
-    if (lastPage.current !== currentPath && lastPage.current !== window.location.pathname) {
-      trackNavigation(lastPage.current, currentPath)
+      // Track navigation only if we have a previous page
+      if (lastPage.current && lastPage.current !== currentPath) {
+        trackNavigation(lastPage.current, currentPath)
+      }
+
+      lastPage.current = currentPath
+      hasTrackedCurrentPage.current = true
     }
-
-    lastPage.current = currentPath
+    
     pageStartTime.current = Date.now()
+
+    // Reset tracking flag when component unmounts or path changes
+    return () => {
+      hasTrackedCurrentPage.current = false
+    }
   }, [window.location.pathname])
 
-  // Track page unload
+  // Track page unload with throttling
   useEffect(() => {
+    let unloadTracked = false
+    
     const handleBeforeUnload = () => {
+      if (unloadTracked) return // Prevent duplicate unload events
+      
       const timeSpent = Math.round((Date.now() - pageStartTime.current) / 1000)
       
-      // Use sendBeacon for reliable tracking on page unload
-      if (navigator.sendBeacon) {
-        trackEvent({
-          component: 'System',
-          event_name: 'Page unload',
-          description: `User left page: ${window.location.pathname}`,
-          additional_data: {
-            time_spent_seconds: timeSpent,
-            page_path: window.location.pathname
-          }
-        })
+      // Only track if user spent meaningful time (more than 2 seconds)
+      if (timeSpent > 2) {
+        unloadTracked = true
+        
+        // Use sendBeacon for reliable tracking on page unload
+        if (navigator.sendBeacon) {
+          trackEvent({
+            component: 'System',
+            event_name: 'Page unload',
+            description: `User left page: ${window.location.pathname}`,
+            additional_data: {
+              time_spent_seconds: timeSpent,
+              page_path: window.location.pathname
+            }
+          })
+        }
       }
     }
 
@@ -81,13 +102,27 @@ export const useClickstream = () => {
     
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      unloadTracked = false
     }
   }, [])
 
-  // Global error tracking
+  // Global error tracking with throttling
   useEffect(() => {
+    let errorCount = 0
+    const maxErrors = 5 // Limit errors per session
+    
     const handleError = (event) => {
-      trackError('JavaScript Error', event.error?.message || 'Unknown error', {
+      if (errorCount >= maxErrors) return // Prevent spam
+      errorCount++
+      
+      // Only track meaningful errors, not common browser issues
+      const errorMessage = event.error?.message || 'Unknown error'
+      if (errorMessage.includes('ResizeObserver') || 
+          errorMessage.includes('Non-Error promise rejection')) {
+        return // Skip common non-critical errors
+      }
+      
+      trackError('JavaScript Error', errorMessage, {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
@@ -96,9 +131,16 @@ export const useClickstream = () => {
     }
 
     const handleUnhandledRejection = (event) => {
-      trackError('Promise Rejection', event.reason?.toString() || 'Unhandled promise rejection', {
-        reason: event.reason
-      })
+      if (errorCount >= maxErrors) return // Prevent spam
+      errorCount++
+      
+      // Only track promise rejections that are actual errors
+      const reason = event.reason?.toString() || 'Unhandled promise rejection'
+      if (reason.includes('TypeError') || reason.includes('ReferenceError')) {
+        trackError('Promise Rejection', reason, {
+          reason: event.reason
+        })
+      }
     }
 
     window.addEventListener('error', handleError)

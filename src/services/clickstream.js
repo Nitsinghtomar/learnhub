@@ -3,6 +3,10 @@ import { supabase } from './supabase'
 // Feature flag to disable analytics if database tables don't exist
 const ANALYTICS_ENABLED = import.meta.env.VITE_ENABLE_ANALYTICS === 'true'
 
+// Event throttling to prevent spam
+const eventThrottle = new Map()
+const THROTTLE_DURATION = 1000 // 1 second throttle for duplicate events
+
 // Debug environment variables in production
 console.log('🔧 Clickstream Debug Info:', {
   ANALYTICS_ENABLED,
@@ -82,6 +86,30 @@ export const trackEvent = async (eventData) => {
   if (!ANALYTICS_ENABLED) {
     console.log('📊 Analytics disabled, skipping event:', eventData.event_name)
     return { data: null, error: null }
+  }
+
+  // Create a unique key for this event to prevent duplicates
+  const eventKey = `${eventData.event_name}-${eventData.component}-${window.location.pathname}-${eventData.event_context || ''}`
+  const now = Date.now()
+  
+  // Check if this exact event was recently tracked
+  if (eventThrottle.has(eventKey)) {
+    const lastTime = eventThrottle.get(eventKey)
+    if (now - lastTime < THROTTLE_DURATION) {
+      console.log('🚫 Event throttled (duplicate):', eventData.event_name)
+      return { data: null, error: 'throttled' }
+    }
+  }
+  
+  // Update throttle map
+  eventThrottle.set(eventKey, now)
+  
+  // Clean up old entries to prevent memory leaks
+  if (eventThrottle.size > 100) {
+    const oldestEntries = Array.from(eventThrottle.entries())
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, 50)
+    oldestEntries.forEach(([key]) => eventThrottle.delete(key))
   }
 
   try {
@@ -385,6 +413,34 @@ export const trackNavigation = (fromPage, toPage) => {
 }
 
 export const trackError = (errorType, errorMessage, context = {}) => {
+  // Filter out common non-critical errors that don't need tracking
+  const ignoredErrors = [
+    'ResizeObserver loop limit exceeded',
+    'ResizeObserver loop completed',
+    'Non-Error promise rejection',
+    'Script error',
+    'Network request failed',
+    'Loading chunk',
+    'ChunkLoadError',
+    'Loading CSS chunk',
+    'Failed to fetch',
+    'NetworkError when attempting to fetch',
+    'TypeError: Failed to fetch',
+    'TypeError: Load failed',
+    'Uncaught TypeError: Cannot read properties of undefined',
+    'Uncaught TypeError: Cannot read property',
+    'AbortError',
+    'QuotaExceededError'
+  ]
+  
+  // Don't track if it's a common browser/network error
+  if (ignoredErrors.some(ignored => 
+    errorMessage.toLowerCase().includes(ignored.toLowerCase())
+  )) {
+    console.log('🚫 Ignoring common error:', errorMessage)
+    return { data: null, error: 'ignored' }
+  }
+  
   return trackEvent({
     component: 'System',
     event_name: 'Error occurred',

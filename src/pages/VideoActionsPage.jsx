@@ -1,17 +1,7 @@
 import React from 'react';
-import { useClickstream } from '../hooks/useClickstream';
 
 const VideoActionsPage = () => {
-  const { track } = useClickstream();
-
-  React.useEffect(() => {
-    track({
-      component: 'Video',
-      event_name: 'Page viewed',
-      event_context: 'Video Actions Page',
-      description: 'User viewed video actions page'
-    });
-  }, [track]);
+  // Remove redundant tracking - useClickstream hook already handles page views
 
   return (
     <div className="p-6">
