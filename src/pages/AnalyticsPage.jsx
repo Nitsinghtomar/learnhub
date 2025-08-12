@@ -17,6 +17,25 @@ const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const testConnection = async () => {
+    console.log('🧪 Testing Supabase connection...')
+    
+    try {
+      // Test basic connection
+      const { data, error } = await supabase.from('courses').select('count').limit(1)
+      console.log('🧪 Connection test result:', { data, error })
+      
+      if (error) {
+        alert('Connection Error: ' + error.message)
+      } else {
+        alert('✅ Connection successful!')
+      }
+    } catch (err) {
+      console.error('🧪 Connection test failed:', err)
+      alert('❌ Connection failed: ' + err.message)
+    }
+  }
+
   const testTimestamp = async () => {
     console.log('🧪 Testing timestamp...')
     await track({
@@ -35,22 +54,33 @@ const AnalyticsPage = () => {
   const loadAnalytics = async () => {
     try {
       if (!user?.id) {
-        console.log('No user ID available for analytics')
+        console.log('🔍 No user ID available for analytics')
         setLoading(false)
         return
       }
 
-      console.log('Loading analytics for user:', user.id)
-      
-      // Track page view
-      track({
-        component: 'Analytics',
-        event_name: 'Page viewed',
-        event_context: 'Analytics Page',
-        description: 'User viewed analytics page'
+      console.log('🔍 Loading analytics for user:', user.id)
+      console.log('🔍 Environment check:', {
+        SUPABASE_URL: !!supabase?.supabaseUrl,
+        ANALYTICS_ENABLED: import.meta.env.VITE_ENABLE_ANALYTICS,
+        NODE_ENV: import.meta.env.MODE
       })
       
+      // Track page view
+      try {
+        await track({
+          component: 'Analytics',
+          event_name: 'Page viewed',
+          event_context: 'Analytics Page',
+          description: 'User viewed analytics page'
+        })
+        console.log('✅ Page view tracked successfully')
+      } catch (trackError) {
+        console.error('❌ Error tracking page view:', trackError)
+      }
+      
       // Get raw clickstream data directly from Supabase
+      console.log('🔍 Querying clickstream data...')
       const { data: clickstreamData, error: clickstreamError } = await supabase
         .from('clickstream')
         .select('*')
@@ -58,18 +88,26 @@ const AnalyticsPage = () => {
         .order('time', { ascending: false })
         .limit(100)
 
+      console.log('🔍 Clickstream query result:', { 
+        data: clickstreamData, 
+        error: clickstreamError,
+        dataLength: clickstreamData?.length 
+      })
+
       if (clickstreamError) {
-        console.error('Error loading clickstream:', clickstreamError)
-        setError(clickstreamError.message)
+        console.error('❌ Error loading clickstream:', clickstreamError)
+        setError('Failed to load analytics: ' + clickstreamError.message)
       } else {
-        console.log('Raw clickstream data:', clickstreamData)
+        console.log('✅ Raw clickstream data loaded:', clickstreamData?.length || 0, 'events')
         setRawClickstream(clickstreamData || [])
         
         // Process analytics
         if (clickstreamData && clickstreamData.length > 0) {
           const processedAnalytics = processClickstreamData(clickstreamData)
+          console.log('✅ Processed analytics:', processedAnalytics)
           setAnalytics(processedAnalytics)
         } else {
+          console.log('ℹ️ No clickstream data found, showing empty state')
           setAnalytics({
             totalEvents: 0,
             activityByType: [],
@@ -80,8 +118,8 @@ const AnalyticsPage = () => {
         }
       }
     } catch (err) {
-      console.error('Error loading analytics:', err)
-      setError(err.message)
+      console.error('❌ Error loading analytics:', err)
+      setError('Failed to load analytics: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -218,6 +256,12 @@ const AnalyticsPage = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Learning Analytics</h1>
         <div className="flex items-center space-x-4">
+          <button
+            onClick={testConnection}
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+          >
+            🔗 Test Connection
+          </button>
           <button
             onClick={testTimestamp}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"

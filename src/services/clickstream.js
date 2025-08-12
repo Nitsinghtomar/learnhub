@@ -3,6 +3,16 @@ import { supabase } from './supabase'
 // Feature flag to disable analytics if database tables don't exist
 const ANALYTICS_ENABLED = import.meta.env.VITE_ENABLE_ANALYTICS === 'true'
 
+// Debug environment variables in production
+console.log('🔧 Clickstream Debug Info:', {
+  ANALYTICS_ENABLED,
+  VITE_ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS,
+  VITE_APP_ENV: import.meta.env.VITE_APP_ENV,
+  SUPABASE_URL_SET: !!import.meta.env.VITE_SUPABASE_URL,
+  SUPABASE_KEY_SET: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+  NODE_ENV: import.meta.env.MODE
+})
+
 // Generate session ID and cache IP
 let cachedIP = null
 const generateSessionId = () => {
