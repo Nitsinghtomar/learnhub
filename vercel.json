@@ -3,12 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "env": {
-    "VITE_SUPABASE_URL": "@supabase-url",
-    "VITE_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "VITE_ENABLE_ANALYTICS": "true",
-    "VITE_APP_ENV": "production"
-  },
   "rewrites": [
     {
       "source": "/(.*)",
